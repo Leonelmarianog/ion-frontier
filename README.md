@@ -31,27 +31,37 @@ Deploy the generated `dist/` directory to a static host. No server or accounts a
 
 Requires Docker Engine and the Docker Compose plugin.
 
+### Coolify
+
+Use the Docker Compose build pack with `compose.yaml`. The `game` service exposes container port **8080** without publishing any host ports. Set the service domain in Coolify to `https://game.example.com:8080` (replace the hostname with yours). The port tells Coolify's proxy which container port to use; visitors use `https://game.example.com` over standard HTTPS. Serve the game at the domain root. See [Coolify's domain documentation](https://coolify.io/docs/knowledge-base/domains).
+
+The built-in Docker healthcheck works inside the container without a published port. If configuring an HTTP probe separately, use port 8080 and path `/healthz`.
+
+### Local Docker preview
+
+Explicitly include the local override to publish a loopback-only port:
+
 ```sh
-docker compose up -d --build --wait
+docker compose -f compose.yaml -f compose.local.yaml up -d --build --wait
 ```
 
-Open `http://localhost:8080`. To change the host port, run `PORT=3000 docker compose up -d --build --wait`. The container always listens on port **8080**. Configure your deployment platform to route traffic to that port and terminate HTTPS at its reverse proxy/load balancer. Serve the game at the domain root.
+Open `http://localhost:8080`. To change the local host port, prefix the command with `PORT=3000`. Do not include `compose.local.yaml` in Coolify; it is only for local previews and CI.
 
 ```sh
-docker compose ps
-docker compose logs -f game
+docker compose -f compose.yaml -f compose.local.yaml ps
+docker compose -f compose.yaml -f compose.local.yaml logs -f game
 curl --fail http://localhost:8080/healthz
-docker compose down
+docker compose -f compose.yaml -f compose.local.yaml down
 ```
 
-Without Compose:
+For a local preview without Compose:
 
 ```sh
 docker build -t ion-frontier:latest .
 docker run -d --name ion-frontier --restart unless-stopped \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  -p 8080:8080 ion-frontier:latest
+  -p 127.0.0.1:8080:8080 ion-frontier:latest
 docker inspect --format '{{.State.Health.Status}}' ion-frontier
 ```
 

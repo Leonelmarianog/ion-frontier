@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose up -d --build --wait --wait-timeout 90
+      - run: docker compose -f compose.yaml -f compose.local.yaml up -d --build --wait --wait-timeout 90
       - name: Check production HTTP endpoints
         run: |
           curl --fail --silent http://localhost:8080/ > /tmp/game.html
@@ -29,4 +29,4 @@ jobs:
           cmp /tmp/game.html /tmp/health.html
           test "$(curl --silent -o /dev/null -w '%{http_code}' http://localhost:8080/assets/missing.js)" = 404
       - if: always()
-        run: docker compose logs && docker compose down
+        run: docker compose -f compose.yaml -f compose.local.yaml logs && docker compose -f compose.yaml -f compose.local.yaml down

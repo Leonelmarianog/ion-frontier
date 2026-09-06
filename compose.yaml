@@ -2,8 +2,8 @@ services:
   game:
     build: .
     image: ion-frontier:latest
-    ports:
-      - "${PORT:-8080}:8080"
+    expose:
+      - "8080"
     restart: unless-stopped
     read_only: true
     tmpfs:
