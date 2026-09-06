@@ -1,0 +1,32 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait --wait-timeout 90
+      - name: Check production HTTP endpoints
+        run: |
+          curl --fail --silent http://localhost:8080/ > /tmp/game.html
+          grep -q 'Ion Frontier' /tmp/game.html
+          curl --fail --silent http://localhost:8080/healthz > /tmp/health.html
+          cmp /tmp/game.html /tmp/health.html
+          test "$(curl --silent -o /dev/null -w '%{http_code}' http://localhost:8080/assets/missing.js)" = 404
+      - if: always()
+        run: docker compose logs && docker compose down
