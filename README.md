@@ -11,7 +11,17 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Press Enter or click the game to launch. Move with WASD or arrow keys, hold Space to fire, and press P to pause/resume. Switching away from the window pauses the game. You have three hull points, with brief invulnerability after a hit. Destroy enemies for 100 points each. Waves grow in size and speed. Press Enter or click after losing to restart.
+Open the local URL printed by Vite. Press Enter or click the game to launch. Move with WASD or arrow keys, hold Space to fire, and press P to pause/resume. Switching away from the window pauses the game. You have three hull points, with brief invulnerability after a hit. Destroy scouts for 100 points, gunners for 200, and guardians for 500. Waves grow in size and speed. Enemy shots aim at your position when fired, so keep moving; armed enemies flash white before firing. Press Enter or click after losing to restart.
+
+## Combat
+
+| Enemy                          | First wave | Hull | Behavior                                      |
+| ------------------------------ | ---------- | ---- | --------------------------------------------- |
+| Scout (pink triangle)          | 1          | 1    | Flies in groups of three along a curved path. |
+| Gunner (amber ship)            | 2          | 2    | Crosses the screen while firing aimed shots.  |
+| Guardian (purple armored ship) | 3          | 5    | Enters, holds position to attack, then exits. |
+
+Orange circular shots damage the player. A hit grants 1.5 seconds of invulnerability. Pause freezes movement, firing cooldowns, and wave scheduling; retry clears both teams' projectiles and restores the initial wave. This update still uses endless waves; a finite stage and boss are future milestones.
 
 ## Checks and release
 
@@ -75,8 +85,9 @@ Hashed assets receive long-lived immutable caching; HTML is revalidated on each 
 
 - `src/main.ts`: engine configuration and responsive canvas.
 - `src/scenes/FlightScene.ts`: initial playable scene, input, collisions, pooled entities, and run states.
-- `src/game/rules.ts`: engine-independent movement and wave rules.
+- `src/game/`: engine-independent movement, enemy configuration, aiming, and difficulty rules.
+- `src/systems/`: pooled projectiles, enemy health/attacks, and formation scheduling.
 - `tests/`: unit tests for gameplay invariants and a browser smoke test for launch/pause/resume.
 - `.github/workflows/ci.yml`: automated formatting, lint, test, and build checks.
 
-The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: separate enemy and weapon systems as behavior grows, add authored enemy formations and enemy bullets, weapon pickups, then a finite stage and boss. Audio, gamepad/touch input, persistent scores, are not implemented yet.
+The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: weapon pickups, then a finite stage and boss. Audio, gamepad/touch input, persistent scores are not implemented yet.
