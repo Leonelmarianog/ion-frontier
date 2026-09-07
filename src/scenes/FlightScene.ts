@@ -5,6 +5,9 @@ import { Projectiles } from "../systems/Projectiles";
 import { Enemies } from "../systems/Enemies";
 import { Waves } from "../systems/Waves";
 
+import { WeaponLoadout } from "../game/weapons";
+import { Pickups } from "../systems/Pickups";
+
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
 export class FlightScene extends Phaser.Scene {
@@ -21,7 +24,11 @@ export class FlightScene extends Phaser.Scene {
   private score = 0;
   private lives = FLIGHT.lives;
   private elapsed = 0;
-  private nextShot = 0;
+  private weapons = new WeaponLoadout();
+  private pickups!: Pickups;
+  private weaponHud!: Phaser.GameObjects.Text;
+  private notice!: Phaser.GameObjects.Text;
+  private noticeUntil = 0;
   private invincibleUntil = 0;
 
   constructor() {
@@ -72,6 +79,7 @@ export class FlightScene extends Phaser.Scene {
     this.hostileShots = new Projectiles(this, "hostile-bolt", 64);
     this.enemies = new Enemies(this, this.hostileShots);
     this.waves = new Waves(this.enemies);
+    this.pickups = new Pickups(this);
     this.physics.add.overlap(
       this.bullets.group,
       this.enemies.group,
@@ -90,6 +98,8 @@ export class FlightScene extends Phaser.Scene {
           points ? 0xffad75 : 0xffffff,
         );
         this.score += points;
+        if (points > 0)
+          this.pickups.onKill((enemy as Sprite).x, (enemy as Sprite).y);
       },
     );
     this.physics.add.overlap(
@@ -110,8 +120,22 @@ export class FlightScene extends Phaser.Scene {
         if (this.canTakeDamage()) this.damage();
       },
     );
+    this.physics.add.overlap(
+      this.player,
+      this.pickups.group,
+      (_player, item) => {
+        const pickup = item as Sprite;
+        if (this.state !== "playing" || !pickup.active) return;
+        pickup.disableBody(true, true);
+        const result = this.weapons.collect();
+        this.score += result.bonus;
+        this.showNotice(result.message);
+        this.spark(this.player.x, this.player.y, 0x79efd0);
+        this.updateHud();
+      },
+    );
     this.keys = this.input.keyboard!.addKeys(
-      "W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,ENTER,P",
+      "W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,ENTER,P,ONE,TWO",
     ) as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(["SPACE", "UP", "DOWN", "LEFT", "RIGHT"]);
     this.hud = this.add
@@ -121,6 +145,24 @@ export class FlightScene extends Phaser.Scene {
         color: "#b7d0ed",
       })
       .setDepth(5);
+    this.weaponHud = this.add
+      .text(26, 49, "", {
+        fontFamily: "monospace",
+        fontSize: "13px",
+        color: "#79efd0",
+      })
+      .setDepth(5);
+    this.notice = this.add
+      .text(480, 93, "", {
+        fontFamily: "monospace",
+        fontSize: "18px",
+        color: "#79efd0",
+        backgroundColor: "#0b162b",
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setDepth(5)
+      .setVisible(false);
     this.overlay = this.add.container(0, 0).setDepth(10);
     this.showOverlay(
       "ION FRONTIER",
@@ -202,6 +244,16 @@ export class FlightScene extends Phaser.Scene {
     g.fillStyle(0xfff3c2);
     g.fillCircle(6, 6, 3);
     g.generateTexture("hostile-bolt", 12, 12);
+    g.clear();
+    g.fillStyle(0x092e2d);
+    g.fillRoundedRect(0, 0, 34, 34, 7);
+    g.lineStyle(2, 0x79efd0);
+    g.strokeRoundedRect(1, 1, 32, 32, 6);
+    g.lineStyle(3, 0xafffea);
+    g.lineBetween(8, 17, 25, 8);
+    g.lineBetween(8, 17, 26, 17);
+    g.lineBetween(8, 17, 25, 26);
+    g.generateTexture("spread-pickup", 34, 34);
     g.destroy();
   }
 
@@ -224,7 +276,7 @@ export class FlightScene extends Phaser.Scene {
       label(323, prompt, 15, "#a7b9d3"),
       label(
         366,
-        "WASD / ARROWS  ·  SPACE TO FIRE  ·  P TO PAUSE",
+        "WASD / ARROWS  ·  SPACE FIRE  ·  1 / 2 WEAPON  ·  P PAUSE",
         12,
         "#758caa",
       ),
@@ -240,7 +292,10 @@ export class FlightScene extends Phaser.Scene {
     this.score = 0;
     this.lives = FLIGHT.lives;
     this.elapsed = 0;
-    this.nextShot = 0;
+    this.weapons.reset();
+    this.pickups.reset();
+    this.noticeUntil = 0;
+    this.notice.setVisible(false);
     this.invincibleUntil = 0;
     this.player.setPosition(140, 270).setAlpha(1).setVelocity(0);
     this.state = "playing";
@@ -287,7 +342,15 @@ export class FlightScene extends Phaser.Scene {
     });
   }
 
+  private showNotice(message: string) {
+    this.notice.setText(message).setVisible(true);
+    this.noticeUntil = this.elapsed + 2200;
+  }
+
   private updateHud() {
+    this.weaponHud.setText(
+      `[1] FORWARD${this.weapons.selected === "forward" ? " ◀" : ""}    [2] SPREAD ${this.weapons.spreadLevel ? `LV ${this.weapons.spreadLevel}${this.weapons.selected === "spread" ? " ◀" : ""}` : "LOCKED · COLLECT GREEN PODS"}`,
+    );
     this.hud.setText(
       `SCORE ${this.score.toString().padStart(6, "0")}                  SECTOR 07 / WAVE ${String(this.waves.number).padStart(2, "0")}          HULL ${"◆".repeat(this.lives)}${"◇".repeat(FLIGHT.lives - this.lives)}`,
     );
@@ -330,13 +393,20 @@ export class FlightScene extends Phaser.Scene {
           : 1
         : 1,
     );
-    if (this.keys.SPACE.isDown && this.elapsed >= this.nextShot) {
-      this.bullets.fire(this.player.x + 28, this.player.y, {
-        x: FLIGHT.bulletSpeed,
-        y: 0,
-      });
-      this.nextShot = this.elapsed + FLIGHT.fireInterval;
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ONE))
+      this.weapons.select("forward");
+    if (
+      Phaser.Input.Keyboard.JustDown(this.keys.TWO) &&
+      !this.weapons.select("spread")
+    )
+      this.showNotice("COLLECT A GREEN POD TO UNLOCK SPREAD");
+    if (this.keys.SPACE.isDown) {
+      this.weapons.fire(this.elapsed, (volley) =>
+        this.bullets.fireVolley(this.player.x + 28, this.player.y, volley),
+      );
     }
+    this.pickups.update();
+    if (this.elapsed >= this.noticeUntil) this.notice.setVisible(false);
     this.waves.update(this.elapsed);
     this.enemies.update(this.elapsed, this.player);
     this.bullets.update();

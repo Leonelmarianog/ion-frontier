@@ -20,6 +20,13 @@ export class Projectiles {
     return true;
   }
 
+  fireVolley(x: number, y: number, velocities: { x: number; y: number }[]) {
+    if (this.group.maxSize - this.group.countActive(true) < velocities.length)
+      return false;
+    velocities.forEach((velocity) => this.fire(x, y, velocity));
+    return true;
+  }
+
   update() {
     this.group.getChildren().forEach((child) => {
       const shot = child as Phaser.Physics.Arcade.Sprite;

@@ -23,6 +23,17 @@ Open the local URL printed by Vite. Press Enter or click the game to launch. Mov
 
 Orange circular shots damage the player. A hit grants 1.5 seconds of invulnerability. Pause freezes movement, firing cooldowns, and wave scheduling; retry clears both teams' projectiles and restores the initial wave. This update still uses endless waves; a finite stage and boss are future milestones.
 
+## Weapon pickups
+
+Every fourth enemy destroyed by your shots drops a green spread pod. Fly into it to collect it before it drifts off the left edge. Escaped enemies and ramming do not count toward drops.
+
+- First pod: unlocks and equips three-shot spread.
+- Second pod: upgrades and equips five-shot spread.
+- Further pods: award 250 bonus points each.
+- Press **1** for forward fire or **2** for unlocked spread. Hold **Space** to fire.
+
+Forward fire remains faster (130 ms between shots); spread fires every 240 ms and covers a wider area. Switching weapons shares the current cooldown. The HUD shows the selected weapon and spread level, and collection displays a brief message. Damage keeps your upgrades; restarting resets the loadout and clears all pods. Pausing also freezes pods and pickup messages.
+
 ## Checks and release
 
 ```sh
@@ -90,4 +101,4 @@ Hashed assets receive long-lived immutable caching; HTML is revalidated on each 
 - `tests/`: unit tests for gameplay invariants and a browser smoke test for launch/pause/resume.
 - `.github/workflows/ci.yml`: automated formatting, lint, test, and build checks.
 
-The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: weapon pickups, then a finite stage and boss. Audio, gamepad/touch input, persistent scores are not implemented yet.
+The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: a finite stage and boss. Audio, gamepad/touch input, persistent scores are not implemented yet.
