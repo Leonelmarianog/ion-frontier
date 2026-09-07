@@ -17,9 +17,12 @@ import {
   flightTime,
 } from "../game/stage";
 
+import { GameAudio } from "../systems/Audio";
+
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
 export class FlightScene extends Phaser.Scene {
+  private audio!: GameAudio;
   private player!: Sprite;
   private bullets!: Projectiles;
   private hostileShots!: Projectiles;
@@ -47,6 +50,7 @@ export class FlightScene extends Phaser.Scene {
   }
 
   create() {
+    this.audio = new GameAudio();
     this.makeTextures();
     for (let i = 0; i < 100; i++) {
       const depth = Phaser.Math.Between(1, 3);
@@ -105,6 +109,7 @@ export class FlightScene extends Phaser.Scene {
           return;
         shot.disableBody(true, true);
         if (this.boss.hit()) this.winRun();
+        else this.audio.play("hit");
       },
     );
     this.physics.add.overlap(this.player, this.boss.sprite, () => {
@@ -127,6 +132,7 @@ export class FlightScene extends Phaser.Scene {
           (enemy as Sprite).y,
           points ? 0xffad75 : 0xffffff,
         );
+        this.audio.play(points > 0 ? "explosion" : "hit");
         this.score += points;
         if (points > 0)
           this.pickups.onKill((enemy as Sprite).x, (enemy as Sprite).y);
@@ -157,6 +163,7 @@ export class FlightScene extends Phaser.Scene {
         const pickup = item as Sprite;
         if (this.state !== "playing" || !pickup.active) return;
         pickup.disableBody(true, true);
+        this.audio.play("pickup");
         const result = this.weapons.collect();
         this.score += result.bonus;
         this.showNotice(result.message);
@@ -214,6 +221,7 @@ export class FlightScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () =>
       this.game.events.off(Phaser.Core.Events.BLUR, onBlur),
     );
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.destroy());
     this.physics.pause();
     this.updateHud();
   }
@@ -344,6 +352,7 @@ export class FlightScene extends Phaser.Scene {
   }
 
   private startRun() {
+    this.audio.start();
     this.bullets.reset();
     this.hostileShots.reset();
     this.enemies.reset();
@@ -366,6 +375,7 @@ export class FlightScene extends Phaser.Scene {
 
   private winRun() {
     if (this.state !== "playing" || this.stage.phase !== "boss") return;
+    this.audio.finish(true);
     const bonus = clearBonus(this.lives);
     this.score += bonus;
     this.stage.complete();
@@ -394,6 +404,7 @@ export class FlightScene extends Phaser.Scene {
       this.waves.complete && this.enemies.group.countActive(true) === 0,
     );
     if (phase === "warning" && previous !== phase) {
+      this.audio.play("warning");
       this.hostileShots.reset();
       this.showNotice("WARNING · RIM WARDEN APPROACHING");
       this.noticeUntil = this.elapsed + 3000;
@@ -401,11 +412,13 @@ export class FlightScene extends Phaser.Scene {
     if (phase === "boss" && previous !== phase) {
       this.bullets.reset();
       this.boss.spawn(this.elapsed);
+      this.audio.startBoss();
     }
     this.boss.update(this.elapsed, this.player);
   }
 
   private pauseRun() {
+    this.audio.setPaused(true);
     this.state = "paused";
     this.physics.pause();
     this.showOverlay("FLIGHT PAUSED", "TAKE A BREATHER", "PRESS P TO RESUME");
@@ -416,12 +429,14 @@ export class FlightScene extends Phaser.Scene {
   }
 
   private damage() {
+    this.audio.play("damage");
     this.lives--;
     this.updateHud();
     this.invincibleUntil = this.elapsed + 1500;
     this.spark(this.player.x, this.player.y, 0x79efd0);
     this.cameras.main.shake(150, 0.005);
     if (this.lives <= 0) {
+      this.audio.finish(false);
       this.state = "over";
       this.physics.pause();
       this.player.setVelocity(0);
@@ -478,6 +493,7 @@ export class FlightScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keys.P)) {
       if (this.state === "playing") this.pauseRun();
       else if (this.state === "paused") {
+        this.audio.setPaused(false);
         this.state = "playing";
         this.overlay.setVisible(false);
         this.physics.resume();
@@ -513,13 +529,17 @@ export class FlightScene extends Phaser.Scene {
     )
       this.showNotice("COLLECT A GREEN POD TO UNLOCK SPREAD");
     if (this.keys.SPACE.isDown) {
-      this.weapons.fire(this.elapsed, (volley) =>
-        this.bullets.fireVolley(this.player.x + 28, this.player.y, volley),
-      );
+      if (
+        this.weapons.fire(this.elapsed, (volley) =>
+          this.bullets.fireVolley(this.player.x + 28, this.player.y, volley),
+        )
+      )
+        this.audio.play(this.weapons.selected);
     }
     this.pickups.update();
     if (this.elapsed >= this.noticeUntil) this.notice.setVisible(false);
     this.updateStage();
+    this.audio.update(this.elapsed);
     this.enemies.update(this.elapsed, this.player);
     this.bullets.update();
     this.hostileShots.update();

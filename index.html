@@ -22,6 +22,14 @@
         role="region"
         aria-label="Ion Frontier game. Press Enter to start; move with WASD or arrow keys, shoot with Space, switch weapons with 1 or 2, pause with P."
       ></div>
+      <div class="audio-controls" role="group" aria-label="Audio settings">
+        <button id="audio-mute" type="button" aria-pressed="false">
+          Mute audio
+        </button>
+        <label for="audio-volume">Volume</label>
+        <input id="audio-volume" type="range" min="0" max="100" value="35" />
+        <output id="audio-level" for="audio-volume">35%</output>
+      </div>
       <footer>
         <div>
           <kbd>W A S D</kbd> / <kbd>↑ ↓ ← →</kbd> MOVE <span>•</span>
