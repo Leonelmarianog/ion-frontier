@@ -42,6 +42,12 @@ Every fourth enemy destroyed by your shots drops a green spread pod. Fly into it
 
 Forward fire remains faster (130 ms between shots); spread fires every 240 ms and covers a wider area. Switching weapons shares the current cooldown. The HUD shows the selected weapon and spread level, and collection displays a brief message. Damage keeps your upgrades; restarting resets the loadout and clears all pods. Pausing also freezes pods and pickup messages.
 
+## Audio
+
+Original synthesized effects accompany firing, impacts, explosions, damage, pickups, the boss warning, victory, and defeat. The Rim Warden has a looping electronic theme. Audio unlocks after your first keyboard or pointer interaction; pausing or switching away silences active sounds and pauses the music sequence. Replay starts a fresh audio sequence.
+
+Use the **Mute audio** button and **Volume** slider below the game. Settings persist across reloads when browser storage is available. The default volume is 35%. Audio is optional: the game remains playable if the browser cannot provide it.
+
 ## Checks and release
 
 ```sh
@@ -109,4 +115,4 @@ Hashed assets receive long-lived immutable caching; HTML is revalidated on each 
 - `tests/`: unit tests for gameplay invariants and a browser smoke test for launch/pause/resume.
 - `.github/workflows/ci.yml`: automated formatting, lint, test, and build checks.
 
-The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: audio, visual polish, and additional stages. Audio, gamepad/touch input, persistent scores are not implemented yet.
+The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: visual polish and additional stages. Gamepad/touch input and persistent scores are not implemented yet.

@@ -104,3 +104,30 @@ kbd {
     padding-top: 16px;
   }
 }
+
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  color: #99a9c2;
+  font-size: 13px;
+}
+.audio-controls button {
+  background: #172237;
+  color: #d8e5fa;
+  border: 1px solid #334665;
+  border-radius: 4px;
+  padding: 8px 12px;
+  min-width: 115px;
+  cursor: pointer;
+}
+.audio-controls input {
+  accent-color: #73f6d3;
+  width: 120px;
+}
+.audio-controls :focus-visible {
+  outline: 2px solid #73f6d3;
+  outline-offset: 3px;
+}
