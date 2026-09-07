@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run tests/rules.test.ts",
+    "test": "vitest run --exclude 'tests/browser/**'",
     "test:browser": "playwright test"
   },
   "dependencies": {

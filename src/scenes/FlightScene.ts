@@ -1,12 +1,18 @@
 import Phaser from "phaser";
-import { FLIGHT, WORLD, movement, waveSize } from "../game/rules";
+import { FLIGHT, WORLD, movement } from "../game/rules";
+
+import { Projectiles } from "../systems/Projectiles";
+import { Enemies } from "../systems/Enemies";
+import { Waves } from "../systems/Waves";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
 export class FlightScene extends Phaser.Scene {
   private player!: Sprite;
-  private bullets!: Phaser.Physics.Arcade.Group;
-  private enemies!: Phaser.Physics.Arcade.Group;
+  private bullets!: Projectiles;
+  private hostileShots!: Projectiles;
+  private waves!: Waves;
+  private enemies!: Enemies;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private stars: { dot: Phaser.GameObjects.Rectangle; speed: number }[] = [];
   private hud!: Phaser.GameObjects.Text;
@@ -14,12 +20,8 @@ export class FlightScene extends Phaser.Scene {
   private state: "ready" | "playing" | "paused" | "over" = "ready";
   private score = 0;
   private lives = FLIGHT.lives;
-  private wave = 0;
-  private remaining = 0;
   private elapsed = 0;
   private nextShot = 0;
-  private nextSpawn = 0;
-  private nextWave = 0;
   private invincibleUntil = 0;
 
   constructor() {
@@ -66,21 +68,48 @@ export class FlightScene extends Phaser.Scene {
       .sprite(140, 270, "ship")
       .setCollideWorldBounds(true);
     this.player.setSize(27, 14).setOffset(9, 9);
-    this.bullets = this.physics.add.group({ defaultKey: "bolt", maxSize: 48 });
-    this.enemies = this.physics.add.group({ defaultKey: "enemy", maxSize: 24 });
-    this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
-      this.spark((enemy as Sprite).x, (enemy as Sprite).y, 0xffad75);
-      this.bullets.killAndHide(bullet as Sprite);
-      (bullet as Sprite).disableBody(true, true);
-      (enemy as Sprite).disableBody(true, true);
-      this.score += 100;
-    });
-    this.physics.add.overlap(this.player, this.enemies, (_player, enemy) => {
-      if (this.elapsed < this.invincibleUntil || this.state !== "playing")
-        return;
-      (enemy as Sprite).disableBody(true, true);
-      this.damage();
-    });
+    this.bullets = new Projectiles(this, "bolt", 48);
+    this.hostileShots = new Projectiles(this, "hostile-bolt", 64);
+    this.enemies = new Enemies(this, this.hostileShots);
+    this.waves = new Waves(this.enemies);
+    this.physics.add.overlap(
+      this.bullets.group,
+      this.enemies.group,
+      (bullet, enemy) => {
+        if (
+          !(bullet as Sprite).active ||
+          !(enemy as Sprite).active ||
+          this.state !== "playing"
+        )
+          return;
+        (bullet as Sprite).disableBody(true, true);
+        const points = this.enemies.hit(enemy as Sprite);
+        this.spark(
+          (enemy as Sprite).x,
+          (enemy as Sprite).y,
+          points ? 0xffad75 : 0xffffff,
+        );
+        this.score += points;
+      },
+    );
+    this.physics.add.overlap(
+      this.player,
+      this.enemies.group,
+      (_player, enemy) => {
+        if (!this.canTakeDamage() || !(enemy as Sprite).active) return;
+        (enemy as Sprite).disableBody(true, true);
+        this.damage();
+      },
+    );
+    this.physics.add.overlap(
+      this.player,
+      this.hostileShots.group,
+      (_player, shot) => {
+        if (!(shot as Sprite).active || this.state !== "playing") return;
+        (shot as Sprite).disableBody(true, true);
+        if (this.canTakeDamage()) this.damage();
+      },
+    );
     this.keys = this.input.keyboard!.addKeys(
       "W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,ENTER,P",
     ) as Record<string, Phaser.Input.Keyboard.Key>;
@@ -137,13 +166,42 @@ export class FlightScene extends Phaser.Scene {
     g.fillRoundedRect(0, 0, 22, 5, 2);
     g.generateTexture("bolt", 22, 5);
     g.clear();
-    g.fillStyle(0xf57982);
+    g.fillStyle(0xffffff);
     g.fillTriangle(0, 16, 30, 0, 30, 32);
     g.fillStyle(0x66364f);
     g.fillTriangle(12, 16, 35, 6, 35, 26);
     g.fillStyle(0xffd49a);
     g.fillRect(6, 13, 8, 6);
-    g.generateTexture("enemy", 36, 32);
+    g.generateTexture("scout", 36, 32);
+    g.clear();
+    g.fillStyle(0xffffff);
+    g.fillRoundedRect(3, 4, 32, 24, 5);
+    g.fillRect(0, 13, 16, 6);
+    g.fillStyle(0x583d28);
+    g.fillRect(20, 10, 10, 12);
+    g.generateTexture("gunner", 36, 32);
+    g.clear();
+    g.fillStyle(0xffffff);
+    g.fillPoints(
+      [
+        { x: 0, y: 24 },
+        { x: 12, y: 3 },
+        { x: 42, y: 3 },
+        { x: 48, y: 24 },
+        { x: 42, y: 45 },
+        { x: 12, y: 45 },
+      ],
+      true,
+    );
+    g.fillStyle(0x48376c);
+    g.fillRect(17, 12, 18, 24);
+    g.generateTexture("guardian", 48, 48);
+    g.clear();
+    g.fillStyle(0xff805e);
+    g.fillCircle(6, 6, 6);
+    g.fillStyle(0xfff3c2);
+    g.fillCircle(6, 6, 3);
+    g.generateTexture("hostile-bolt", 12, 12);
     g.destroy();
   }
 
@@ -175,20 +233,14 @@ export class FlightScene extends Phaser.Scene {
   }
 
   private startRun() {
-    this.bullets
-      .getChildren()
-      .forEach((b) => (b as Sprite).disableBody(true, true));
-    this.enemies
-      .getChildren()
-      .forEach((e) => (e as Sprite).disableBody(true, true));
+    this.bullets.reset();
+    this.hostileShots.reset();
+    this.enemies.reset();
+    this.waves.reset();
     this.score = 0;
     this.lives = FLIGHT.lives;
-    this.wave = 0;
-    this.remaining = 0;
     this.elapsed = 0;
     this.nextShot = 0;
-    this.nextSpawn = 0;
-    this.nextWave = 700;
     this.invincibleUntil = 0;
     this.player.setPosition(140, 270).setAlpha(1).setVelocity(0);
     this.state = "playing";
@@ -202,8 +254,13 @@ export class FlightScene extends Phaser.Scene {
     this.showOverlay("FLIGHT PAUSED", "TAKE A BREATHER", "PRESS P TO RESUME");
   }
 
+  private canTakeDamage() {
+    return this.state === "playing" && this.elapsed >= this.invincibleUntil;
+  }
+
   private damage() {
     this.lives--;
+    this.updateHud();
     this.invincibleUntil = this.elapsed + 1500;
     this.spark(this.player.x, this.player.y, 0x79efd0);
     this.cameras.main.shake(150, 0.005);
@@ -232,7 +289,7 @@ export class FlightScene extends Phaser.Scene {
 
   private updateHud() {
     this.hud.setText(
-      `SCORE ${this.score.toString().padStart(6, "0")}                  SECTOR 07 / WAVE ${String(this.wave).padStart(2, "0")}          HULL ${"◆".repeat(this.lives)}${"◇".repeat(FLIGHT.lives - this.lives)}`,
+      `SCORE ${this.score.toString().padStart(6, "0")}                  SECTOR 07 / WAVE ${String(this.waves.number).padStart(2, "0")}          HULL ${"◆".repeat(this.lives)}${"◇".repeat(FLIGHT.lives - this.lives)}`,
     );
   }
 
@@ -274,53 +331,16 @@ export class FlightScene extends Phaser.Scene {
         : 1,
     );
     if (this.keys.SPACE.isDown && this.elapsed >= this.nextShot) {
-      const bullet = this.bullets.get(
-        this.player.x + 28,
-        this.player.y,
-      ) as Sprite | null;
-      if (bullet) {
-        bullet.enableBody(true, this.player.x + 28, this.player.y, true, true);
-        bullet.setVelocity(FLIGHT.bulletSpeed, 0);
-      }
+      this.bullets.fire(this.player.x + 28, this.player.y, {
+        x: FLIGHT.bulletSpeed,
+        y: 0,
+      });
       this.nextShot = this.elapsed + FLIGHT.fireInterval;
     }
-    if (
-      this.remaining === 0 &&
-      this.enemies.countActive(true) === 0 &&
-      this.elapsed >= this.nextWave
-    ) {
-      this.wave++;
-      this.remaining = waveSize(this.wave);
-      this.nextSpawn = this.elapsed;
-    }
-    if (this.remaining > 0 && this.elapsed >= this.nextSpawn) {
-      const y = 95 + ((this.remaining * 67 + this.wave * 43) % 345);
-      const enemy = this.enemies.get(990, y) as Sprite | null;
-      if (enemy) {
-        enemy.enableBody(true, 990, y, true, true);
-        enemy.setSize(28, 24);
-        enemy.setVelocity(-Math.min(150 + this.wave * 12, 300), 0);
-        enemy.setData("baseY", y);
-        enemy.setData("born", this.elapsed);
-        this.remaining--;
-      }
-      this.nextSpawn = this.elapsed + 580;
-      this.nextWave = this.elapsed + 2500;
-    }
-    this.bullets.getChildren().forEach((child) => {
-      const bullet = child as Sprite;
-      if (bullet.active && bullet.x > 990) bullet.disableBody(true, true);
-    });
-    this.enemies.getChildren().forEach((child) => {
-      const enemy = child as Sprite;
-      if (!enemy.active) return;
-      enemy.setVelocityY(
-        Math.cos((this.elapsed - Number(enemy.getData("born"))) / 450) * 65,
-      );
-      if (enemy.x < -40) {
-        enemy.disableBody(true, true);
-      }
-    });
+    this.waves.update(this.elapsed);
+    this.enemies.update(this.elapsed, this.player);
+    this.bullets.update();
+    this.hostileShots.update();
     this.updateHud();
   }
 }
