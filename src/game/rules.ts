@@ -11,6 +11,3 @@ export function movement(x: number, y: number, speed: number) {
     ? { x: 0, y: 0 }
     : { x: (x / length) * speed, y: (y / length) * speed };
 }
-export function waveSize(wave: number): number {
-  return Math.min(5 + Math.max(0, wave - 1) * 2, 15);
-}

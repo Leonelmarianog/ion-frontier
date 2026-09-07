@@ -8,6 +8,15 @@ import { Waves } from "../systems/Waves";
 import { WeaponLoadout } from "../game/weapons";
 import { Pickups } from "../systems/Pickups";
 
+import { Boss } from "../systems/Boss";
+import {
+  StageProgress,
+  STAGE_FORMATIONS,
+  STAGE_DURATION,
+  clearBonus,
+  flightTime,
+} from "../game/stage";
+
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
 export class FlightScene extends Phaser.Scene {
@@ -15,12 +24,14 @@ export class FlightScene extends Phaser.Scene {
   private bullets!: Projectiles;
   private hostileShots!: Projectiles;
   private waves!: Waves;
+  private stage = new StageProgress();
+  private boss!: Boss;
   private enemies!: Enemies;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private stars: { dot: Phaser.GameObjects.Rectangle; speed: number }[] = [];
   private hud!: Phaser.GameObjects.Text;
   private overlay!: Phaser.GameObjects.Container;
-  private state: "ready" | "playing" | "paused" | "over" = "ready";
+  private state: "ready" | "playing" | "paused" | "over" | "victory" = "ready";
   private score = 0;
   private lives = FLIGHT.lives;
   private elapsed = 0;
@@ -80,6 +91,25 @@ export class FlightScene extends Phaser.Scene {
     this.enemies = new Enemies(this, this.hostileShots);
     this.waves = new Waves(this.enemies);
     this.pickups = new Pickups(this);
+    this.boss = new Boss(this, this.hostileShots);
+    this.physics.add.overlap(
+      this.boss.sprite,
+      this.bullets.group,
+      (_boss, bullet) => {
+        const shot = bullet as Sprite;
+        if (
+          !shot.active ||
+          this.state !== "playing" ||
+          this.stage.phase !== "boss"
+        )
+          return;
+        shot.disableBody(true, true);
+        if (this.boss.hit()) this.winRun();
+      },
+    );
+    this.physics.add.overlap(this.player, this.boss.sprite, () => {
+      if (this.canTakeDamage()) this.damage();
+    });
     this.physics.add.overlap(
       this.bullets.group,
       this.enemies.group,
@@ -166,11 +196,16 @@ export class FlightScene extends Phaser.Scene {
     this.overlay = this.add.container(0, 0).setDepth(10);
     this.showOverlay(
       "ION FRONTIER",
-      "PATROL THE OUTER RIM",
+      "SECTOR 07 · BREAK THROUGH AND DEFEAT THE WARDEN",
       "PRESS ENTER OR CLICK TO LAUNCH",
     );
     this.input.on("pointerdown", () => {
-      if (this.state === "ready" || this.state === "over") this.startRun();
+      if (
+        this.state === "ready" ||
+        this.state === "over" ||
+        this.state === "victory"
+      )
+        this.startRun();
     });
     const onBlur = () => {
       if (this.state === "playing") this.pauseRun();
@@ -254,6 +289,30 @@ export class FlightScene extends Phaser.Scene {
     g.lineBetween(8, 17, 26, 17);
     g.lineBetween(8, 17, 25, 26);
     g.generateTexture("spread-pickup", 34, 34);
+    g.clear();
+    g.fillStyle(0xffffff);
+    g.fillPoints(
+      [
+        { x: 0, y: 64 },
+        { x: 28, y: 10 },
+        { x: 95, y: 0 },
+        { x: 136, y: 28 },
+        { x: 136, y: 100 },
+        { x: 95, y: 128 },
+        { x: 28, y: 118 },
+      ],
+      true,
+    );
+    g.fillStyle(0x472d48);
+    g.fillRect(38, 20, 68, 88);
+    g.fillStyle(0xf48388);
+    g.fillCircle(44, 64, 23);
+    g.fillStyle(0xffedb8);
+    g.fillCircle(39, 64, 12);
+    g.fillStyle(0x8c5772);
+    g.fillRect(12, 22, 55, 12);
+    g.fillRect(12, 94, 55, 12);
+    g.generateTexture("boss", 136, 128);
     g.destroy();
   }
 
@@ -289,6 +348,8 @@ export class FlightScene extends Phaser.Scene {
     this.hostileShots.reset();
     this.enemies.reset();
     this.waves.reset();
+    this.stage.reset();
+    this.boss.reset();
     this.score = 0;
     this.lives = FLIGHT.lives;
     this.elapsed = 0;
@@ -301,6 +362,47 @@ export class FlightScene extends Phaser.Scene {
     this.state = "playing";
     this.overlay.setVisible(false);
     this.physics.resume();
+  }
+
+  private winRun() {
+    if (this.state !== "playing" || this.stage.phase !== "boss") return;
+    const bonus = clearBonus(this.lives);
+    this.score += bonus;
+    this.stage.complete();
+    this.state = "victory";
+    this.bullets.reset();
+    this.hostileShots.reset();
+    this.enemies.reset();
+    this.pickups.reset();
+    this.boss.reset();
+    this.notice.setVisible(false);
+    this.player.setVelocity(0).setAlpha(1);
+    this.physics.pause();
+    this.updateHud();
+    this.showOverlay(
+      "FRONTIER SECURED",
+      `SCORE ${this.score.toString().padStart(6, "0")} · TIME ${flightTime(this.elapsed)} · CLEAR BONUS ${bonus}`,
+      "PRESS ENTER OR CLICK TO PLAY AGAIN",
+    );
+  }
+
+  private updateStage() {
+    if (this.stage.phase === "approach") this.waves.update(this.elapsed);
+    const previous = this.stage.phase;
+    const phase = this.stage.update(
+      this.elapsed,
+      this.waves.complete && this.enemies.group.countActive(true) === 0,
+    );
+    if (phase === "warning" && previous !== phase) {
+      this.hostileShots.reset();
+      this.showNotice("WARNING · RIM WARDEN APPROACHING");
+      this.noticeUntil = this.elapsed + 3000;
+    }
+    if (phase === "boss" && previous !== phase) {
+      this.bullets.reset();
+      this.boss.spawn(this.elapsed);
+    }
+    this.boss.update(this.elapsed, this.player);
   }
 
   private pauseRun() {
@@ -351,8 +453,16 @@ export class FlightScene extends Phaser.Scene {
     this.weaponHud.setText(
       `[1] FORWARD${this.weapons.selected === "forward" ? " ◀" : ""}    [2] SPREAD ${this.weapons.spreadLevel ? `LV ${this.weapons.spreadLevel}${this.weapons.selected === "spread" ? " ◀" : ""}` : "LOCKED · COLLECT GREEN PODS"}`,
     );
+    const progress =
+      this.stage.phase === "approach"
+        ? `WAVE ${String(this.waves.number).padStart(2, "0")}/${STAGE_FORMATIONS.length} · ${Math.min(100, Math.floor((this.elapsed / STAGE_DURATION) * 100))}%`
+        : this.stage.phase === "complete"
+          ? "STAGE CLEAR"
+          : this.stage.phase === "warning"
+            ? "BOSS INBOUND"
+            : "BOSS FIGHT";
     this.hud.setText(
-      `SCORE ${this.score.toString().padStart(6, "0")}                  SECTOR 07 / WAVE ${String(this.waves.number).padStart(2, "0")}          HULL ${"◆".repeat(this.lives)}${"◇".repeat(FLIGHT.lives - this.lives)}`,
+      `SCORE ${this.score.toString().padStart(6, "0")}        ${progress}        HULL ${"◆".repeat(this.lives)}${"◇".repeat(FLIGHT.lives - this.lives)}`,
     );
   }
 
@@ -360,7 +470,9 @@ export class FlightScene extends Phaser.Scene {
     if (!this.keys) return;
     if (
       Phaser.Input.Keyboard.JustDown(this.keys.ENTER) &&
-      (this.state === "ready" || this.state === "over")
+      (this.state === "ready" ||
+        this.state === "over" ||
+        this.state === "victory")
     )
       this.startRun();
     if (Phaser.Input.Keyboard.JustDown(this.keys.P)) {
@@ -407,7 +519,7 @@ export class FlightScene extends Phaser.Scene {
     }
     this.pickups.update();
     if (this.elapsed >= this.noticeUntil) this.notice.setVisible(false);
-    this.waves.update(this.elapsed);
+    this.updateStage();
     this.enemies.update(this.elapsed, this.player);
     this.bullets.update();
     this.hostileShots.update();

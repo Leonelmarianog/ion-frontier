@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Press Enter or click the game to launch. Move with WASD or arrow keys, hold Space to fire, and press P to pause/resume. Switching away from the window pauses the game. You have three hull points, with brief invulnerability after a hit. Destroy scouts for 100 points, gunners for 200, and guardians for 500. Waves grow in size and speed. Enemy shots aim at your position when fired, so keep moving; armed enemies flash white before firing. Press Enter or click after losing to restart.
+Open the local URL printed by Vite. Press Enter or click the game to launch. Move with WASD or arrow keys, hold Space to fire, and press P to pause/resume. Switching away from the window pauses the game. You have three hull points, with brief invulnerability after a hit. Destroy scouts for 100 points, gunners for 200, and guardians for 500. Ten authored encounters introduce enemies and alternate pressure with recovery. Enemy shots aim at your position when fired, so keep moving; armed enemies flash white before firing. Press Enter or click after losing to restart.
 
 ## Combat
 
@@ -21,7 +21,15 @@ Open the local URL printed by Vite. Press Enter or click the game to launch. Mov
 | Gunner (amber ship)            | 2          | 2    | Crosses the screen while firing aimed shots.  |
 | Guardian (purple armored ship) | 3          | 5    | Enters, holds position to attack, then exits. |
 
-Orange circular shots damage the player. A hit grants 1.5 seconds of invulnerability. Pause freezes movement, firing cooldowns, and wave scheduling; retry clears both teams' projectiles and restores the initial wave. This update still uses endless waves; a finite stage and boss are future milestones.
+Orange circular shots damage the player. A hit grants 1.5 seconds of invulnerability. Pause freezes movement, firing cooldowns, and wave scheduling; retry clears both teams' projectiles and restores the initial wave. Clear the ten encounters and defeat the Rim Warden to win the stage.
+
+## Stage and boss
+
+Sector 07 is a finite stage. Ten encounters are scheduled over 140 seconds; after the final ships leave or are destroyed, a three-second warning introduces the **Rim Warden**. Expect a complete run to take roughly three minutes, depending on how quickly you defeat the boss.
+
+The Warden enters with a brief shield, then moves vertically and alternates aimed three-shot bursts with broad fan attacks. It flashes white before firing. At half of its 100 hull points, it fires faster and the fan widens. Watch the health bar at the bottom of the playfield and keep moving after aimed shots fire. Both forward and spread weapons can defeat it.
+
+Victory clears enemy fire, freezes the run, and shows the final score and completion time. The clear bonus is 5,000 points plus 1,000 per remaining hull point. Press Enter or click to replay from the beginning with three hull points and the default weapon. Losing during the boss fight also restarts from the beginning. Pause freezes the stage clock, warning, boss movement, and attack cooldowns.
 
 ## Weapon pickups
 
@@ -101,4 +109,4 @@ Hashed assets receive long-lived immutable caching; HTML is revalidated on each 
 - `tests/`: unit tests for gameplay invariants and a browser smoke test for launch/pause/resume.
 - `.github/workflows/ci.yml`: automated formatting, lint, test, and build checks.
 
-The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: a finite stage and boss. Audio, gamepad/touch input, persistent scores are not implemented yet.
+The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: audio, visual polish, and additional stages. Audio, gamepad/touch input, persistent scores are not implemented yet.

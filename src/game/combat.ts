@@ -36,12 +36,6 @@ export function aimedVelocity(
   return movement(target.x - from.x, target.y - from.y, speed);
 }
 
-export function enemyKind(wave: number, index: number): EnemyKind {
-  if (wave >= 3 && index % 5 === 4) return "guardian";
-  if (wave >= 2 && index % 4 === 3) return "gunner";
-  return "scout";
-}
-
 export function enemyVelocity(kind: EnemyKind, age: number, wave: number) {
   const speed = ENEMY[kind].speed + Math.min(Math.max(wave - 1, 0) * 8, 80);
   if (kind === "guardian" && age >= 1800 && age < 6200) return { x: 0, y: 0 };

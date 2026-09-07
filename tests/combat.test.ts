@@ -1,19 +1,16 @@
 import { describe, expect, it } from "vitest";
-import {
-  aimedVelocity,
-  enemyKind,
-  enemyVelocity,
-  ENEMY,
-} from "../src/game/combat";
+import { aimedVelocity, enemyVelocity, ENEMY } from "../src/game/combat";
+
+import { STAGE_FORMATIONS } from "../src/game/stage";
 
 describe("enemy combat", () => {
   it("introduces armed enemies progressively", () => {
-    expect(Array.from({ length: 5 }, (_, i) => enemyKind(1, i))).toEqual(
-      Array(5).fill("scout"),
+    expect(STAGE_FORMATIONS[0].enemies.every((kind) => kind === "scout")).toBe(
+      true,
     );
-    expect(enemyKind(2, 3)).toBe("gunner");
-    expect(enemyKind(2, 4)).toBe("scout");
-    expect(enemyKind(3, 4)).toBe("guardian");
+    expect(STAGE_FORMATIONS[1].enemies).toContain("gunner");
+    expect(STAGE_FORMATIONS[1].enemies).not.toContain("guardian");
+    expect(STAGE_FORMATIONS[2].enemies).toContain("guardian");
     expect(ENEMY.guardian.health).toBeGreaterThan(ENEMY.gunner.health);
   });
   it("aims at the sampled player position at constant speed", () => {

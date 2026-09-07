@@ -1,51 +1,43 @@
-import { enemyKind } from "../game/combat";
-import { waveSize } from "../game/rules";
-import { Enemies } from "./Enemies";
+import { STAGE_FORMATIONS } from "../game/stage";
+import type { Enemies } from "./Enemies";
 
-/** Schedules formations using gameplay time, so pause freezes the schedule. */
+/** Authored encounters advance on gameplay time; an occupied pool delays spawning. */
 export class Waves {
   number = 0;
-  private remaining = 0;
   private index = 0;
   private nextSpawn = 0;
-  private nextWave = 700;
 
   constructor(private readonly enemies: Enemies) {}
 
+  get complete() {
+    return (
+      this.number === STAGE_FORMATIONS.length &&
+      this.index === STAGE_FORMATIONS[this.number - 1].enemies.length
+    );
+  }
+
   update(now: number) {
-    if (
-      this.remaining === 0 &&
-      this.enemies.group.countActive(true) === 0 &&
-      now >= this.nextWave
-    ) {
+    if (this.complete) return;
+    const current = STAGE_FORMATIONS[this.number - 1];
+    if (!current || this.index === current.enemies.length) {
+      const next = STAGE_FORMATIONS[this.number];
+      if (now < next.at) return;
       this.number++;
-      this.remaining = waveSize(this.number);
       this.index = 0;
       this.nextSpawn = now;
     }
-    if (this.remaining === 0 || now < this.nextSpawn) return;
-    const formation = Math.floor(this.index / 3);
-    const y = 120 + ((formation * 125 + this.number * 37) % 290);
-    if (
-      this.enemies.spawn(
-        enemyKind(this.number, this.index),
-        y,
-        now,
-        this.number,
-      )
-    ) {
-      this.remaining--;
+    if (now < this.nextSpawn) return;
+    const formation = STAGE_FORMATIONS[this.number - 1];
+    const y =
+      110 + ((formation.lane - 110 + Math.floor(this.index / 3) * 105) % 290);
+    if (this.enemies.spawn(formation.enemies[this.index], y, now, this.number))
       this.index++;
-    }
-    this.nextSpawn = now + (this.index % 3 === 0 ? 1000 : 360);
-    this.nextWave = now + 2500;
+    this.nextSpawn = now + (this.index % 3 === 0 ? 900 : 400);
   }
 
   reset() {
     this.number = 0;
-    this.remaining = 0;
     this.index = 0;
     this.nextSpawn = 0;
-    this.nextWave = 700;
   }
 }
