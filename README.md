@@ -115,4 +115,4 @@ Hashed assets receive long-lived immutable caching; HTML is revalidated on each 
 - `tests/`: unit tests for gameplay invariants and a browser smoke test for launch/pause/resume.
 - `.github/workflows/ci.yml`: automated formatting, lint, test, and build checks.
 
-The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. Next milestones: visual polish and additional stages. Gamepad/touch input and persistent scores are not implemented yet.
+The prototype targets desktop keyboard play. It includes movement, firing, scrolling star layers, enemy waves, scoring, damage, pause, and retry. See the [milestone tracker](docs/milestones.md) for completed and planned work. Gamepad/touch input and persistent scores are not implemented yet.
